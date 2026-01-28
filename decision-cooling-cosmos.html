@@ -1,0 +1,805 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+  <meta charset="UTF-8" />
+  <title>Decision Cooling Space · 宇宙静心站</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      /* 夜空感：上方略亮，下方深邃宇宙 */
+      background: radial-gradient(circle at top, #1f2937 0%, #020617 45%, #000000 100%);
+      color: #e5e7eb;
+    }
+
+    /* 星星层：细小星点，固定在背景 */
+    .starfield {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 0;
+      background-image:
+        radial-gradient(2px 2px at 20% 20%, rgba(248, 250, 252, 0.7), transparent),
+        radial-gradient(1.5px 1.5px at 70% 30%, rgba(248, 250, 252, 0.5), transparent),
+        radial-gradient(1.2px 1.2px at 40% 80%, rgba(248, 250, 252, 0.4), transparent),
+        radial-gradient(1.8px 1.8px at 85% 65%, rgba(248, 250, 252, 0.6), transparent);
+      opacity: 0.6;
+    }
+
+    .app {
+      position: relative;
+      z-index: 1;
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 24px 16px 48px;
+    }
+
+    header {
+      margin-bottom: 16px;
+    }
+
+    header h1 {
+      margin: 0 0 8px;
+      font-size: 1.9rem;
+      letter-spacing: 0.06em;
+    }
+
+    header p {
+      margin: 0;
+      color: #cbd5f5;
+      font-size: 0.93rem;
+    }
+
+    .header-sub {
+      font-size: 0.78rem;
+      color: #9ca3af;
+      margin-top: 5px;
+    }
+
+    .nav {
+      display: flex;
+      gap: 8px;
+      margin: 20px 0 16px;
+      flex-wrap: wrap;
+    }
+
+    .nav button {
+      border: none;
+      padding: 8px 12px;
+      border-radius: 999px;
+      background: rgba(15, 23, 42, 0.9);
+      color: #e5e7eb;
+      cursor: pointer;
+      font-size: 0.82rem;
+      border: 1px solid #1f2937;
+      transition: background 0.2s, border-color 0.2s, transform 0.1s;
+    }
+
+    .nav button.active {
+      background: #a855f7;      /* 宇宙紫 */
+      border-color: #c4b5fd;
+      color: #0f172a;
+      transform: translateY(-1px);
+    }
+
+    .nav button:hover {
+      border-color: #4b5563;
+    }
+
+    section.zone {
+      display: none;
+      border-radius: 20px;
+      padding: 20px;
+      background: radial-gradient(circle at top left, rgba(30, 64, 175, 0.25), rgba(15, 23, 42, 0.9));
+      border: 1px solid #1f2937;
+      margin-top: 8px;
+      box-shadow: 0 18px 45px rgba(15, 23, 42, 0.6);
+    }
+
+    section.zone.active {
+      display: block;
+    }
+
+    .zone-title {
+      font-size: 1.1rem;
+      margin-bottom: 4px;
+    }
+
+    .zone-subtitle {
+      font-size: 0.9rem;
+      color: #9ca3af;
+      margin-bottom: 14px;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.75rem;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: rgba(15, 23, 42, 0.9);
+      border: 1px solid #1f2937;
+      color: #9ca3af;
+      margin-bottom: 10px;
+    }
+
+    .pill-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 999px;
+      background: #a855f7; /* 小小星球 */
+    }
+
+    /* Zone 0 */
+
+    .state-options {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 10px;
+      margin: 12px 0 16px;
+    }
+
+    .state-card {
+      border-radius: 14px;
+      border: 1px solid #1f2937;
+      padding: 10px 12px;
+      background: rgba(15, 23, 42, 0.9);
+      cursor: pointer;
+      font-size: 0.85rem;
+      transition: border-color 0.15s, background 0.15s, transform 0.1s;
+    }
+
+    .state-card.selected {
+      border-color: #a855f7;
+      background: rgba(30, 64, 175, 0.55);
+      transform: translateY(-1px);
+    }
+
+    .state-label {
+      font-weight: 600;
+      margin-bottom: 4px;
+      color: #e5e7eb;
+    }
+
+    .state-desc {
+      color: #9ca3af;
+    }
+
+    .hint {
+      font-size: 0.8rem;
+      color: #9ca3af;
+      margin-top: 6px;
+    }
+
+    .primary-btn {
+      border-radius: 999px;
+      padding: 8px 16px;
+      border: none;
+      cursor: pointer;
+      background: #a855f7;  /* 宇宙紫 */
+      color: #0f172a;
+      font-size: 0.85rem;
+      margin-top: 8px;
+      transition: background 0.15s, transform 0.1s, box-shadow 0.1s;
+      box-shadow: 0 6px 16px rgba(168, 85, 247, 0.24);
+    }
+
+    .primary-btn:hover {
+      background: #7c3aed;
+      box-shadow: 0 8px 22px rgba(168, 85, 247, 0.34);
+    }
+
+    .secondary-btn {
+      border-radius: 999px;
+      padding: 6px 14px;
+      border: 1px solid #334155;
+      cursor: pointer;
+      background: transparent;
+      color: #e5e7eb;
+      font-size: 0.8rem;
+      margin-top: 8px;
+      transition: background 0.15s, border-color 0.15s;
+    }
+
+    .secondary-btn:hover {
+      background: rgba(15, 23, 42, 0.8);
+      border-color: #64748b;
+    }
+
+    /* Zone 1 */
+
+    .variant-toggle {
+      display: inline-flex;
+      padding: 2px;
+      border-radius: 999px;
+      border: 1px solid #1f2937;
+      background: rgba(15, 23, 42, 0.9);
+      margin: 6px 0 10px;
+    }
+
+    .variant-toggle button {
+      border-radius: 999px;
+      border: none;
+      padding: 6px 10px;
+      font-size: 0.8rem;
+      cursor: pointer;
+      background: transparent;
+      color: #9ca3af;
+      transition: background 0.15s, color 0.15s;
+    }
+
+    .variant-toggle button.active {
+      background: #a855f7;
+      color: #0f172a;
+    }
+
+    .zone-block {
+      margin-top: 10px;
+      padding-top: 8px;
+      border-top: 1px dashed #1f2937;
+    }
+
+    .label {
+      font-size: 0.8rem;
+      color: #9ca3af;
+      margin-bottom: 6px;
+    }
+
+    .card-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    .noise-card {
+      font-size: 0.8rem;
+      border-radius: 12px;
+      border: 1px solid #1f2937;
+      padding: 8px 10px;
+      background: rgba(15, 23, 42, 0.9);
+      cursor: pointer;
+      transition: border-color 0.15s, transform 0.1s, background 0.15s;
+      min-height: 58px;
+    }
+
+    .noise-card.selected {
+      border-color: #a855f7;
+      background: rgba(30, 64, 175, 0.8);
+      transform: translateY(-1px);
+    }
+
+    .buckets {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 10px;
+      margin-top: 4px;
+    }
+
+    .bucket {
+      border-radius: 14px;
+      border: 1px dashed #334155;
+      padding: 8px 10px;
+      background: rgba(15, 23, 42, 0.95);
+      min-height: 86px;
+      font-size: 0.8rem;
+    }
+
+    .bucket-title {
+      font-weight: 600;
+      margin-bottom: 4px;
+      color: #e5e7eb;
+    }
+
+    .bucket-hint {
+      font-size: 0.75rem;
+      color: #6b7280;
+      margin-bottom: 4px;
+    }
+
+    .bucket-content {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .bucket .mini-card {
+      font-size: 0.75rem;
+      border-radius: 999px;
+      padding: 4px 8px;
+      border: 1px solid #1f2937;
+      background: rgba(15, 23, 42, 0.9);
+      color: #e5e7eb;
+    }
+
+    .zone-note {
+      font-size: 0.75rem;
+      color: #6b7280;
+      margin-top: 6px;
+    }
+
+    .success {
+      font-size: 0.85rem;
+      margin-top: 8px;
+      color: #a7f3d0;
+    }
+
+    /* Zone 1B */
+
+    #zone1B-text {
+      margin: 12px 0 8px;
+      min-height: 80px;
+    }
+
+    .fade-line {
+      opacity: 0;
+      animation: fadeIn 1s forwards;
+      font-size: 0.85rem;
+      margin-bottom: 4px;
+      color: #e5e7eb;
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(4px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    #zone1B-message {
+      font-size: 0.85rem;
+      color: #a5b4fc;
+      margin-top: 8px;
+      min-height: 1em;
+    }
+
+    .footer-note {
+      margin-top: 18px;
+      font-size: 0.78rem;
+      color: #6b7280;
+    }
+
+    @media (max-width: 600px) {
+      .app {
+        padding-inline: 12px;
+      }
+      header h1 {
+        font-size: 1.5rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- 星星背景 -->
+  <div class="starfield"></div>
+
+  <div class="app">
+    <header>
+      <h1>Decision Cooling Space · 宇宙静心站</h1>
+      <p>像在夜空里停靠在一颗安静的星。先把自己放回稳定轨道，再决定要飞向哪里。</p>
+      <p class="header-sub">每一次进入，只是点亮一颗小星：一个更清晰、可以真的用在生活里的下一步。</p>
+    </header>
+
+    <div class="nav">
+      <button class="nav-btn active" data-zone="zone-0">Zone 0 · Check-in</button>
+      <button class="nav-btn" data-zone="zone-1">Zone 1 · Unload</button>
+      <button class="nav-btn" data-zone="zone-2">Zone 2 · Downshift</button>
+      <button class="nav-btn" data-zone="zone-3">Zone 3 · Reframe</button>
+      <button class="nav-btn" data-zone="zone-4">Zone 4 · Micro-step</button>
+    </div>
+
+    <!-- Zone 0 -->
+    <section id="zone-0" class="zone active">
+      <div class="pill">
+        <span class="pill-dot"></span>
+        状态识别：先知道自己现在是哪一种“卡住”
+      </div>
+      <div class="zone-title">Zone 0 · Check-in · 你在宇宙的哪一格</div>
+      <div class="zone-subtitle">选一格比较像你现在的状态就好，不需要想太久，也没有对错。</div>
+
+      <div class="state-options" id="stateOptions">
+        <div class="state-card" data-recommend="zone-1">
+          <div class="state-label">脑很吵，但还能动</div>
+          <div class="state-desc">很多念头一起说话，知道自己焦虑，但还有一点力气整理。</div>
+        </div>
+        <div class="state-card" data-recommend="zone-1B">
+          <div class="state-label">很累，只想躺着</div>
+          <div class="state-desc">不想再想任何选择，只想先停靠在一颗安静的星上。</div>
+        </div>
+        <div class="state-card" data-recommend="zone-2">
+          <div class="state-label">整个人偏紧 / 心跳快</div>
+          <div class="state-desc">身体比大脑更紧张，像一直在被时间追着跑。</div>
+        </div>
+        <div class="state-card" data-recommend="zone-3">
+          <div class="state-label">状态还行，只是想不清楚</div>
+          <div class="state-desc">情绪稳定，只是卡在「到底要飞向 A 还是 B」。</div>
+        </div>
+      </div>
+
+      <div id="stateHint" class="hint">选一个最接近的，系统会给你一个建议的起点。</div>
+      <button id="goToRecommended" class="primary-btn" disabled>去推荐的 Zone</button>
+    </section>
+
+    <!-- Zone 1 -->
+    <section id="zone-1" class="zone">
+      <div class="pill">
+        <span class="pill-dot"></span>
+        先把「不是现在要处理的东西」从脑里拿出来
+      </div>
+      <div class="zone-title">Zone 1 · Unload · 暂存噪音</div>
+      <div class="zone-subtitle">这里不解决问题，只是帮你把大脑里的噪音先放到不同的星仓，让轨道空一点。</div>
+
+      <div class="label">选择今天比较适合你的方式：</div>
+      <div class="variant-toggle">
+        <button id="variantA" class="active">还有一点力气 · Active</button>
+        <button id="variantB">真的很累 · Lite</button>
+      </div>
+
+      <!-- Zone 1A: Active -->
+      <div id="zone1A" class="zone-block">
+        <div class="label">Step 1 · 这些是常见的焦虑念头（点击一张卡片，再放到一个区域里）：</div>
+        <div id="zone1A-cards" class="card-grid"></div>
+
+        <div class="label">Step 2 · 把卡片放到更合适的位置：</div>
+        <div class="buckets">
+          <div class="bucket" data-bucket="now">
+            <div class="bucket-title">现在要处理的</div>
+            <div class="bucket-hint">真的跟今天的行动直接相关的少数几件事。</div>
+            <div class="bucket-content" id="bucket-now"></div>
+          </div>
+          <div class="bucket" data-bucket="later">
+            <div class="bucket-title">以后才知道 / 以后再说</div>
+            <div class="bucket-hint">未来才会有答案的，今天勉强想，也不会比较安心。</div>
+            <div class="bucket-content" id="bucket-later"></div>
+          </div>
+          <div class="bucket" data-bucket="not-mine">
+            <div class="bucket-title">不属于我的声音</div>
+            <div class="bucket-hint">别人的标准、比较、投射，让它们先待在这里，不进你的舱。</div>
+            <div class="bucket-content" id="bucket-not-mine"></div>
+          </div>
+        </div>
+
+        <div class="zone-note">小提示：没有对错，只要卡片不再全部挤在同一个地方，就已经是进展。</div>
+        <button id="resetZone1A" class="secondary-btn">重新生成卡片</button>
+        <div id="zone1A-success" class="success"></div>
+      </div>
+
+      <!-- Zone 1B: Lite -->
+      <div id="zone1B" class="zone-block" style="display: none;">
+        <div class="label">今天你只需要看着，系统会帮你把一些东西先拿走。</div>
+        <button id="zone1B-start" class="primary-btn">开始轻卸载</button>
+        <div id="zone1B-text"></div>
+        <div id="zone1B-message"></div>
+        <div id="zone1B-actions"></div>
+        <div class="zone-note">你什么都不做，也已经在对自己的神经系统示好。</div>
+      </div>
+
+      <div class="footer-note">
+        完成 Zone 1 的标志不是「想通了」，而是：脑里的东西没有那么挤在一起，你可以呼吸多一点空间。
+      </div>
+    </section>
+
+    <!-- Zone 2 -->
+    <section id="zone-2" class="zone">
+      <div class="pill">
+        <span class="pill-dot"></span>
+        从「生存模式」慢慢退回「可以选择的模式」
+      </div>
+      <div class="zone-title">Zone 2 · Downshift · 放慢飞行速度</div>
+      <div class="zone-subtitle">
+        这里本来是给身体降速的区域（呼吸、节奏、感官）。现在是占位版本，你以后可以慢慢加上自己的宇宙呼吸练习。
+      </div>
+      <p style="font-size:0.9rem;color:#9ca3af;">
+        暂时的占位说明：<br/>
+        · 这里的互动应该是：越慢，系统反馈越柔和。<br/>
+        · 重点不是技巧，而是让神经系统体验到——「慢下来是安全的，不等于被淘汰」。
+      </p>
+    </section>
+
+    <!-- Zone 3 -->
+    <section id="zone-3" class="zone">
+      <div class="pill">
+        <span class="pill-dot"></span>
+        重置「怎么评估一个选择」的内在算法
+      </div>
+      <div class="zone-title">Zone 3 · Reframe · 看见星图</div>
+      <div class="zone-subtitle">
+        这里不像计算机在算成功率，比起问「会不会赢」，更像抬头看星图：哪一条轨道，是现在的你承受得起、不会把自己耗尽的？
+      </div>
+      <p style="font-size:0.9rem;color:#9ca3af;">
+        暂时的占位说明：<br/>
+        · 之后你可以在这里放入一两句轻的问题，例如：<br/>
+        「如果不需要证明自己，你还会做同样的选择吗？」<br/>
+        「这个决定，是扩展你，还是在消耗你？」<br/>
+        · 用户不需要回答，只要让问题在心里放一下就好。
+      </p>
+    </section>
+
+    <!-- Zone 4 -->
+    <section id="zone-4" class="zone">
+      <div class="pill">
+        <span class="pill-dot"></span>
+        最小、不会让今晚的你恨自己的那一步
+      </div>
+      <div class="zone-title">Zone 4 · Micro-step · 点亮一颗星</div>
+      <div class="zone-subtitle">
+        这里不是规划一生，而是点亮一颗最近的星：只找今天那一步，今晚回头看，你不会恨自己、又能往前一点点。
+      </div>
+      <p style="font-size:0.9rem;color:#9ca3af;">
+        暂时的占位说明：<br/>
+        · 将来可以设计一个小问题：「如果只做 5% 的动作，是什么？」<br/>
+        · 允许用户选择「今天不做任何决定」，这也是一种负责任的选择，而不是逃避。
+      </p>
+    </section>
+  </div>
+
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      const navButtons = document.querySelectorAll(".nav-btn");
+      const zones = document.querySelectorAll("section.zone");
+
+      function showZone(id) {
+        zones.forEach((z) => {
+          z.classList.toggle("active", z.id === id);
+        });
+        navButtons.forEach((btn) => {
+          btn.classList.toggle("active", btn.dataset.zone === id);
+        });
+      }
+
+      navButtons.forEach((btn) => {
+        btn.addEventListener("click", () => {
+          showZone(btn.dataset.zone);
+        });
+      });
+
+      // Zone 0: Check-in
+      const stateOptions = document.getElementById("stateOptions");
+      const stateHint = document.getElementById("stateHint");
+      const goToRecommended = document.getElementById("goToRecommended");
+      let recommendedZoneId = null;
+      let recommendedSub = null; // for zone-1A / 1B
+
+      stateOptions.addEventListener("click", (e) => {
+        const card = e.target.closest(".state-card");
+        if (!card) return;
+        document.querySelectorAll(".state-card").forEach((c) => c.classList.remove("selected"));
+        card.classList.add("selected");
+        const rec = card.getAttribute("data-recommend");
+        if (rec === "zone-1B") {
+          recommendedZoneId = "zone-1";
+          recommendedSub = "B";
+          stateHint.textContent = "建议从 Zone 1 · Unload（Lite 版本）开始，让系统先帮你拿走一点东西。";
+        } else if (rec === "zone-1") {
+          recommendedZoneId = "zone-1";
+          recommendedSub = "A";
+          stateHint.textContent = "建议从 Zone 1 · Unload（Active 版本）开始，先把脑里的噪音整理一下。";
+        } else {
+          recommendedZoneId = rec;
+          recommendedSub = null;
+          if (rec === "zone-2") {
+            stateHint.textContent = "建议从 Zone 2 · Downshift 开始，先让身体慢一点。";
+          } else if (rec === "zone-3") {
+            stateHint.textContent = "建议从 Zone 3 · Reframe 开始，换一个看待选择的角度。";
+          } else {
+            stateHint.textContent = "选一个最接近的状态就好，系统只是给你一个起点建议。";
+          }
+        }
+        goToRecommended.disabled = false;
+      });
+
+      goToRecommended.addEventListener("click", () => {
+        if (!recommendedZoneId) return;
+        showZone(recommendedZoneId);
+        if (recommendedZoneId === "zone-1") {
+          if (recommendedSub === "B") {
+            switchVariant("B");
+          } else {
+            switchVariant("A");
+          }
+        }
+      });
+
+      // Zone 1: Unload
+      const variantAButton = document.getElementById("variantA");
+      const variantBButton = document.getElementById("variantB");
+      const zone1A = document.getElementById("zone1A");
+      const zone1B = document.getElementById("zone1B");
+
+      function switchVariant(which) {
+        if (which === "A") {
+          variantAButton.classList.add("active");
+          variantBButton.classList.remove("active");
+          zone1A.style.display = "";
+          zone1B.style.display = "none";
+        } else {
+          variantBButton.classList.add("active");
+          variantAButton.classList.remove("active");
+          zone1B.style.display = "";
+          zone1A.style.display = "none";
+        }
+      }
+
+      variantAButton.addEventListener("click", () => switchVariant("A"));
+      variantBButton.addEventListener("click", () => switchVariant("B"));
+
+      // Zone 1A: Active Unload
+      const noiseCardsLibrary = [
+        "我要不要马上决定，不然机会就没了？",
+        "别人都比我快，是不是我太慢了？",
+        "会不会我选错，这条路回报不够好？",
+        "如果失败了，是不是证明我不够好？",
+        "是不是只有我一个人还在原地？",
+        "如果我不抓住这个人 / 机会，会不会就没有下一个？",
+        "我是不是要先把所有东西想清楚才可以开始？",
+        "他们好像都在往前，我是不是落后了？",
+        "如果我撑不住，是不是大家都会失望？",
+        "我是不是应该再努力一点，才有资格享受？"
+      ];
+
+      const zone1ACardsContainer = document.getElementById("zone1A-cards");
+      const bucketNow = document.getElementById("bucket-now");
+      const bucketLater = document.getElementById("bucket-later");
+      const bucketNotMine = document.getElementById("bucket-not-mine");
+      const resetZone1AButton = document.getElementById("resetZone1A");
+      const zone1ASuccess = document.getElementById("zone1A-success");
+
+      let selectedCardEl = null;
+
+      function shuffle(array) {
+        const arr = array.slice();
+        for (let i = arr.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [arr[i], arr[j]] = [arr[j], arr[i]];
+        }
+        return arr;
+      }
+
+      function renderZone1ACards() {
+        zone1ACardsContainer.innerHTML = "";
+        bucketNow.innerHTML = "";
+        bucketLater.innerHTML = "";
+        bucketNotMine.innerHTML = "";
+        zone1ASuccess.textContent = "";
+        selectedCardEl = null;
+
+        const subset = shuffle(noiseCardsLibrary).slice(0, 6);
+        subset.forEach((text, index) => {
+          const card = document.createElement("div");
+          card.className = "noise-card";
+          card.textContent = text;
+          card.dataset.index = String(index);
+          zone1ACardsContainer.appendChild(card);
+        });
+      }
+
+      renderZone1ACards();
+
+      zone1ACardsContainer.addEventListener("click", (e) => {
+        const card = e.target.closest(".noise-card");
+        if (!card) return;
+        if (selectedCardEl) {
+          selectedCardEl.classList.remove("selected");
+        }
+        selectedCardEl = card;
+        card.classList.add("selected");
+      });
+
+      function moveSelectedCard(targetBucket) {
+        if (!selectedCardEl) return;
+        const text = selectedCardEl.textContent || "";
+        const mini = document.createElement("div");
+        mini.className = "mini-card";
+        mini.textContent = text;
+
+        if (targetBucket === "now") {
+          bucketNow.appendChild(mini);
+        } else if (targetBucket === "later") {
+          bucketLater.appendChild(mini);
+        } else if (targetBucket === "not-mine") {
+          bucketNotMine.appendChild(mini);
+        }
+
+        selectedCardEl.remove();
+        selectedCardEl = null;
+
+        if (!zone1ACardsContainer.querySelector(".noise-card")) {
+          zone1ASuccess.textContent = "桌面空一点了，你不需要现在处理所有的东西。你的轨道已经轻了一些。";
+        }
+      }
+
+      document.querySelectorAll(".bucket").forEach((bucket) => {
+        bucket.addEventListener("click", () => {
+          const type = bucket.getAttribute("data-bucket");
+          moveSelectedCard(type);
+        });
+      });
+
+      resetZone1AButton.addEventListener("click", () => {
+        renderZone1ACards();
+      });
+
+      // Zone 1B: Lite Unload
+      const zone1BStartButton = document.getElementById("zone1B-start");
+      const zone1BText = document.getElementById("zone1B-text");
+      const zone1BMessage = document.getElementById("zone1B-message");
+      const zone1BActions = document.getElementById("zone1B-actions");
+
+      const zone1BLines = [
+        "「选错会不会就完了？」这一句，先放在我们这里。",
+        "「别人都比我快」这一句，也可以先休息一下。",
+        "「是不是我不够好」这一句，今天不用解答。",
+        "「如果失败了大家会怎么看我」这一句，也不急。",
+        "宇宙很大，你的人生可以慢一点决定。"
+      ];
+
+      let zone1BTimer = null;
+      let zone1BIndex = 0;
+
+      function resetZone1B() {
+        if (zone1BTimer) {
+          clearInterval(zone1BTimer);
+          zone1BTimer = null;
+        }
+        zone1BIndex = 0;
+        zone1BText.innerHTML = "";
+        zone1BMessage.textContent = "";
+        zone1BActions.innerHTML = "";
+        zone1BStartButton.disabled = false;
+      }
+
+      zone1BStartButton.addEventListener("click", () => {
+        resetZone1B();
+        zone1BStartButton.disabled = true;
+        zone1BMessage.textContent = "";
+        zone1BActions.innerHTML = "";
+
+        zone1BTimer = setInterval(() => {
+          if (zone1BIndex >= zone1BLines.length) {
+            clearInterval(zone1BTimer);
+            zone1BTimer = null;
+            zone1BMessage.textContent = "你现在不需要更聪明，只需要比刚刚安全一点点就够了。";
+            const actionsWrapper = document.createElement("div");
+            actionsWrapper.style.marginTop = "10px";
+
+            const nextBtn = document.createElement("button");
+            nextBtn.className = "primary-btn";
+            nextBtn.textContent = "我想继续下一步";
+            nextBtn.addEventListener("click", () => {
+              showZone("zone-2");
+            });
+
+            const stopBtn = document.createElement("button");
+            stopBtn.className = "secondary-btn";
+            stopBtn.style.marginLeft = "8px";
+            stopBtn.textContent = "今天先这样就好";
+            stopBtn.addEventListener("click", () => {
+              showZone("zone-0");
+            });
+
+            actionsWrapper.appendChild(nextBtn);
+            actionsWrapper.appendChild(stopBtn);
+            zone1BActions.appendChild(actionsWrapper);
+            return;
+          }
+          const line = document.createElement("div");
+          line.className = "fade-line";
+          line.textContent = zone1BLines[zone1BIndex];
+          zone1BText.appendChild(line);
+          zone1BIndex++;
+        }, 1400);
+      });
+    });
+  </script>
+</body>
+</html>
